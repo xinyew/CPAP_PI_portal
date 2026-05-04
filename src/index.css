@@ -1,0 +1,177 @@
+:root {
+  font-family: 'Inter', system-ui, Avenir, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+
+  color-scheme: dark;
+  color: #e2e8f0;
+  background-color: #0b0f19;
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+
+  /* Color Palette */
+  --bg-deep: #0b0f19;
+  --bg-card: rgba(23, 32, 51, 0.7);
+  --border-glass: rgba(255, 255, 255, 0.1);
+  --accent-red: #ff4d4d;
+  --accent-green: #00f291;
+  --accent-blue: #00d4ff;
+  --accent-violet: #bb86fc;
+  --text-dim: #94a3b8;
+}
+
+body {
+  margin: 0;
+  display: flex;
+  min-width: 320px;
+  min-height: 100vh;
+  background: radial-gradient(circle at top right, #1e293b, var(--bg-deep));
+}
+
+#root {
+  width: 100%;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+.dashboard-container {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: 1.5rem;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.glass-card {
+  background: var(--bg-card);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--border-glass);
+  border-radius: 1.5rem;
+  padding: 1.5rem;
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.glass-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.45);
+}
+
+.header-card {
+  grid-column: span 12;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.ppg-card {
+  grid-column: span 8;
+  height: 400px;
+}
+
+.env-card {
+  grid-column: span 4;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-around;
+}
+
+.force-card {
+  grid-column: span 12;
+  height: 300px;
+}
+
+.status-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  border-radius: 2rem;
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+
+.status-online {
+  background: rgba(0, 242, 145, 0.1);
+  color: var(--accent-green);
+  border: 1px solid rgba(0, 242, 145, 0.2);
+}
+
+.status-offline {
+  background: rgba(255, 77, 77, 0.1);
+  color: var(--accent-red);
+  border: 1px solid rgba(255, 77, 77, 0.2);
+}
+
+button {
+  background: var(--accent-blue);
+  color: #000;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+button:hover {
+  filter: brightness(1.2);
+  transform: scale(1.05);
+}
+
+button.disconnect {
+  background: transparent;
+  color: var(--accent-red);
+  border: 1px solid var(--accent-red);
+}
+
+button.recording {
+  background: var(--accent-red);
+  color: #fff;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% { opacity: 1; }
+  50% { opacity: 0.6; }
+  100% { opacity: 1; }
+}
+
+.telemetry-item {
+  display: flex;
+  flex-direction: column;
+}
+
+.telemetry-label {
+  font-size: 0.875rem;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.telemetry-value {
+  font-size: 2.5rem;
+  font-weight: 800;
+  color: #fff;
+}
+
+.telemetry-unit {
+  font-size: 1rem;
+  color: var(--text-dim);
+  margin-left: 0.25rem;
+}
+
+h1, h2 {
+  margin: 0;
+}
+
+h1 {
+  font-size: 1.5rem;
+  background: linear-gradient(to right, #fff, var(--text-dim));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
