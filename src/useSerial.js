@@ -99,14 +99,20 @@ export const useSerial = () => {
             if (line.startsWith('{') && line.endsWith('}')) {
               try {
                 const data = JSON.parse(line);
+                
+                // Validate that data has all expected fields to prevent UI crashes
+                if (data.r === undefined || data.t === undefined) continue;
+
                 const timestamp = Date.now();
                 const dataPoint = { ...data, timestamp };
                 let processedData = { ...dataPoint };
 
-                // Apply Exponential Moving Average (EMA) if filtered
+                // Apply Exponential Moving Average (EMA) if filtered (using Ref for async loop)
                 if (isFilteredRef.current) {
-                  // Initialize filter state with first value if zero
-                  if (filterStateRef.current.r === 0) filterStateRef.current = { ...dataPoint };
+                  // Initialize filter state with first value if zero or invalid
+                  if (!filterStateRef.current || filterStateRef.current.r === 0) {
+                    filterStateRef.current = { ...dataPoint };
+                  }
 
                   filterStateRef.current.r = (alphaPPG * dataPoint.r) + ((1 - alphaPPG) * filterStateRef.current.r);
                   filterStateRef.current.i = (alphaPPG * dataPoint.i) + ((1 - alphaPPG) * filterStateRef.current.i);

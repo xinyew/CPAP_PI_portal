@@ -81,7 +81,7 @@ const Dashboard = () => {
             <span className="telemetry-label">Temp</span>
           </div>
           <div className="telemetry-value" style={{ fontSize: '1.75rem' }}>
-            {latestData.t.toFixed(1)}<span className="telemetry-unit">°C</span>
+            {(latestData.t || 0).toFixed(1)}<span className="telemetry-unit">°C</span>
           </div>
         </div>
 
@@ -91,7 +91,7 @@ const Dashboard = () => {
             <span className="telemetry-label">Hum</span>
           </div>
           <div className="telemetry-value" style={{ fontSize: '1.75rem' }}>
-            {latestData.h.toFixed(1)}<span className="telemetry-unit">%</span>
+            {(latestData.h || 0).toFixed(1)}<span className="telemetry-unit">%</span>
           </div>
         </div>
       </div>
@@ -130,7 +130,7 @@ const Dashboard = () => {
             <Line type="monotone" dataKey="r" stroke="var(--accent-red)" strokeWidth={2} dot={false} isAnimationActive={false} />
           </LineChart>
         </ResponsiveContainer>
-        <div style={{ textAlign: 'right', fontSize: '1.25rem', fontWeight: '700' }}>{latestData.r}</div>
+        <div style={{ textAlign: 'right', fontSize: '1.25rem', fontWeight: '700' }}>{latestData.r || 0}</div>
       </div>
 
       {/* IR PPG Chart Card */}
@@ -147,7 +147,7 @@ const Dashboard = () => {
             <Line type="monotone" dataKey="i" stroke="var(--accent-violet)" strokeWidth={2} dot={false} isAnimationActive={false} />
           </LineChart>
         </ResponsiveContainer>
-        <div style={{ textAlign: 'right', fontSize: '1.25rem', fontWeight: '700' }}>{latestData.i}</div>
+        <div style={{ textAlign: 'right', fontSize: '1.25rem', fontWeight: '700' }}>{latestData.i || 0}</div>
       </div>
 
       {/* Green PPG Chart Card */}
@@ -164,7 +164,7 @@ const Dashboard = () => {
             <Line type="monotone" dataKey="g" stroke="var(--accent-green)" strokeWidth={2} dot={false} isAnimationActive={false} />
           </LineChart>
         </ResponsiveContainer>
-        <div style={{ textAlign: 'right', fontSize: '1.25rem', fontWeight: '700' }}>{latestData.g}</div>
+        <div style={{ textAlign: 'right', fontSize: '1.25rem', fontWeight: '700' }}>{latestData.g || 0}</div>
       </div>
     </div>
   );
