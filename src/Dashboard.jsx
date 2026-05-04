@@ -9,8 +9,8 @@ import {
   ResponsiveContainer,
   Legend
 } from 'recharts';
-import { Activity, Thermometer, Droplets, Zap, Download, Play, Square } from 'lucide-react';
-import { useSerial } from './useSerial';
+import { Activity, Thermometer, Droplets, Zap, Download, Play, Square, Bluetooth, Usb } from 'lucide-react';
+import { useComm } from './useComm';
 
 const Dashboard = () => {
   const { 
@@ -22,8 +22,10 @@ const Dashboard = () => {
     isRecording, 
     toggleRecording,
     isFiltered,
-    toggleFilter
-  } = useSerial();
+    toggleFilter,
+    commMode,
+    setCommMode
+  } = useComm();
 
   return (
     <div className="dashboard-container">
@@ -37,13 +39,48 @@ const Dashboard = () => {
         </div>
         
         <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+          {!isConnected && (
+            <div style={{ 
+              display: 'flex', 
+              background: 'rgba(255,255,255,0.05)', 
+              borderRadius: '0.75rem', 
+              padding: '0.25rem',
+              border: '1px solid var(--border-glass)'
+            }}>
+              <button 
+                onClick={() => setCommMode('serial')}
+                style={{ 
+                  background: commMode === 'serial' ? 'var(--accent-blue)' : 'transparent',
+                  color: commMode === 'serial' ? '#000' : 'var(--text-dim)',
+                  padding: '0.5rem 1rem',
+                  fontSize: '0.875rem'
+                }}
+              >
+                <Usb size={16} style={{ marginRight: '0.5rem' }} />
+                Serial
+              </button>
+              <button 
+                onClick={() => setCommMode('bluetooth')}
+                style={{ 
+                  background: commMode === 'bluetooth' ? 'var(--accent-blue)' : 'transparent',
+                  color: commMode === 'bluetooth' ? '#000' : 'var(--text-dim)',
+                  padding: '0.5rem 1rem',
+                  fontSize: '0.875rem'
+                }}
+              >
+                <Bluetooth size={16} style={{ marginRight: '0.5rem' }} />
+                BLE
+              </button>
+            </div>
+          )}
+
           <div className={`status-badge ${isConnected ? 'status-online' : 'status-offline'}`}>
             <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'currentColor' }} />
             {isConnected ? 'LIVE' : 'DISCONNECTED'}
           </div>
 
           {!isConnected ? (
-            <button onClick={connect}>Connect to nRF52840</button>
+            <button onClick={connect}>Connect</button>
           ) : (
             <>
               <button 
