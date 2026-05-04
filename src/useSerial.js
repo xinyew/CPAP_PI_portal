@@ -4,6 +4,7 @@ export const useSerial = () => {
   const [port, setPort] = useState(null);
   const [isConnected, setIsConnected] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
+  const isRecordingRef = useRef(false);
   
   // Real-time data state for UI
   const [latestData, setLatestData] = useState({ r: 0, i: 0, g: 0, f: 0, t: 0, h: 0 });
@@ -35,12 +36,14 @@ export const useSerial = () => {
   };
 
   const toggleRecording = () => {
+    const nextState = !isRecording;
     if (isRecording) {
       exportToCsv();
     } else {
       recordedDataRef.current = []; // clear old recording
     }
-    setIsRecording(!isRecording);
+    setIsRecording(nextState);
+    isRecordingRef.current = nextState;
   };
 
   const exportToCsv = () => {
@@ -60,6 +63,7 @@ export const useSerial = () => {
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
   };
 
   const readLoop = async (serialPort) => {
@@ -96,8 +100,8 @@ export const useSerial = () => {
                   return newHist;
                 });
 
-                // Update recording
-                if (isRecording) {
+                // Update recording (Use the Ref here to avoid stale closure)
+                if (isRecordingRef.current) {
                   recordedDataRef.current.push(dataPoint);
                 }
               } catch (e) {
