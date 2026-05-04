@@ -20,7 +20,9 @@ const Dashboard = () => {
     latestData, 
     history, 
     isRecording, 
-    toggleRecording 
+    toggleRecording,
+    isFiltered,
+    toggleFilter
   } = useSerial();
 
   return (
