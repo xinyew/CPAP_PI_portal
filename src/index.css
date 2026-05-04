@@ -69,16 +69,16 @@ body {
 }
 
 .ppg-sub-card {
-  grid-column: span 4;
-  height: 250px;
+  grid-column: span 12;
+  height: 200px;
 }
 
 .env-card {
-  grid-column: span 4;
+  grid-column: span 12;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   justify-content: space-around;
-  height: 250px;
+  height: 100px;
 }
 
 .force-card {

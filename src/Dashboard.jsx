@@ -58,6 +58,49 @@ const Dashboard = () => {
         </div>
       </header>
 
+      {/* Environment Telemetry Card */}
+      <div className="glass-card env-card">
+        <div className="telemetry-item">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
+            <Thermometer color="var(--accent-blue)" size={16} />
+            <span className="telemetry-label">Temp</span>
+          </div>
+          <div className="telemetry-value" style={{ fontSize: '1.75rem' }}>
+            {latestData.t.toFixed(1)}<span className="telemetry-unit">°C</span>
+          </div>
+        </div>
+
+        <div className="telemetry-item">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
+            <Droplets color="var(--accent-blue)" size={16} />
+            <span className="telemetry-label">Hum</span>
+          </div>
+          <div className="telemetry-value" style={{ fontSize: '1.75rem' }}>
+            {latestData.h.toFixed(1)}<span className="telemetry-unit">%</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Force Sensor Chart Card */}
+      <div className="glass-card force-card">
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
+          <Zap color="var(--accent-violet)" size={20} />
+          <h2>Force Sensor Analysis</h2>
+        </div>
+        <ResponsiveContainer width="100%" height="80%">
+          <LineChart data={history}>
+            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+            <XAxis dataKey="timestamp" hide />
+            <YAxis stroke="var(--text-dim)" fontSize={12} label={{ value: 'mV', angle: -90, position: 'insideLeft', fill: 'var(--text-dim)' }} />
+            <Tooltip 
+              contentStyle={{ background: '#1e293b', border: '1px solid var(--border-glass)', borderRadius: '8px' }}
+              labelStyle={{ display: 'none' }}
+            />
+            <Line type="monotone" dataKey="f" stroke="var(--accent-violet)" strokeWidth={3} dot={false} name="Force (mV)" isAnimationActive={false} />
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
+
       {/* Red PPG Chart Card */}
       <div className="glass-card ppg-sub-card">
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
@@ -107,49 +150,6 @@ const Dashboard = () => {
           </LineChart>
         </ResponsiveContainer>
         <div style={{ textAlign: 'right', fontSize: '1.25rem', fontWeight: '700' }}>{latestData.g}</div>
-      </div>
-
-      {/* Environment Telemetry Card */}
-      <div className="glass-card env-card">
-        <div className="telemetry-item">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
-            <Thermometer color="var(--accent-blue)" size={16} />
-            <span className="telemetry-label">Temp</span>
-          </div>
-          <div className="telemetry-value" style={{ fontSize: '1.75rem' }}>
-            {latestData.t.toFixed(1)}<span className="telemetry-unit">°C</span>
-          </div>
-        </div>
-
-        <div className="telemetry-item">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
-            <Droplets color="var(--accent-blue)" size={16} />
-            <span className="telemetry-label">Hum</span>
-          </div>
-          <div className="telemetry-value" style={{ fontSize: '1.75rem' }}>
-            {latestData.h.toFixed(1)}<span className="telemetry-unit">%</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Force Sensor Chart Card */}
-      <div className="glass-card force-card">
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
-          <Zap color="var(--accent-violet)" size={20} />
-          <h2>Force Sensor Analysis</h2>
-        </div>
-        <ResponsiveContainer width="100%" height="80%">
-          <LineChart data={history}>
-            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
-            <XAxis dataKey="timestamp" hide />
-            <YAxis stroke="var(--text-dim)" fontSize={12} label={{ value: 'mV', angle: -90, position: 'insideLeft', fill: 'var(--text-dim)' }} />
-            <Tooltip 
-              contentStyle={{ background: '#1e293b', border: '1px solid var(--border-glass)', borderRadius: '8px' }}
-              labelStyle={{ display: 'none' }}
-            />
-            <Line type="monotone" dataKey="f" stroke="var(--accent-violet)" strokeWidth={3} dot={false} name="Force (mV)" isAnimationActive={false} />
-          </LineChart>
-        </ResponsiveContainer>
       </div>
     </div>
   );
