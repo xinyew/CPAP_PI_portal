@@ -45,6 +45,21 @@ const Dashboard = () => {
           ) : (
             <>
               <button 
+                onClick={toggleFilter}
+                style={{ 
+                  background: isFiltered ? 'var(--accent-green)' : 'transparent',
+                  color: isFiltered ? '#000' : 'var(--accent-green)',
+                  border: '1px solid var(--accent-green)',
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '0.5rem' 
+                }}
+              >
+                <Download size={16} style={{ transform: 'rotate(180deg)' }} />
+                {isFiltered ? 'Filter ON' : 'Filter OFF'}
+              </button>
+
+              <button 
                 className={isRecording ? 'recording' : ''} 
                 onClick={toggleRecording}
                 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}

@@ -4,8 +4,16 @@ export const useSerial = () => {
   const [port, setPort] = useState(null);
   const [isConnected, setIsConnected] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
-  const isRecordingRef = useRef(false);
+  const [isFiltered, setIsFiltered] = useState(false);
   
+  const isRecordingRef = useRef(false);
+  const isFilteredRef = useRef(false);
+  
+  // EMA Filter coefficients (0.1 = heavy smoothing, 0.9 = light smoothing)
+  const alphaPPG = 0.15;
+  const alphaForce = 0.1;
+  const filterStateRef = useRef({ r: 0, i: 0, g: 0, f: 0 });
+
   // Real-time data state for UI
   const [latestData, setLatestData] = useState({ r: 0, i: 0, g: 0, f: 0, t: 0, h: 0 });
   
@@ -29,8 +37,6 @@ export const useSerial = () => {
 
   const disconnect = async () => {
     if (port) {
-      // Note: proper teardown of streams requires cancelling the reader first.
-      // For simplicity in this demo, we'll just reload the page or rely on garbage collection if the user unplugs.
       window.location.reload(); 
     }
   };
@@ -44,6 +50,12 @@ export const useSerial = () => {
     }
     setIsRecording(nextState);
     isRecordingRef.current = nextState;
+  };
+
+  const toggleFilter = () => {
+    const nextState = !isFiltered;
+    setIsFiltered(nextState);
+    isFilteredRef.current = nextState;
   };
 
   const exportToCsv = () => {
@@ -68,7 +80,7 @@ export const useSerial = () => {
 
   const readLoop = async (serialPort) => {
     const textDecoder = new TextDecoderStream();
-    const readableStreamClosed = serialPort.readable.pipeTo(textDecoder.writable);
+    serialPort.readable.pipeTo(textDecoder.writable);
     const reader = textDecoder.readable.getReader();
 
     let buffer = "";
@@ -80,7 +92,7 @@ export const useSerial = () => {
         if (value) {
           buffer += value;
           const lines = buffer.split('\n');
-          buffer = lines.pop(); // Keep incomplete line in buffer
+          buffer = lines.pop();
 
           for (let line of lines) {
             line = line.trim();
@@ -89,24 +101,35 @@ export const useSerial = () => {
                 const data = JSON.parse(line);
                 const timestamp = Date.now();
                 const dataPoint = { ...data, timestamp };
+                let processedData = { ...dataPoint };
+
+                // Apply Exponential Moving Average (EMA) if filtered
+                if (isFilteredRef.current) {
+                  // Initialize filter state with first value if zero
+                  if (filterStateRef.current.r === 0) filterStateRef.current = { ...dataPoint };
+
+                  filterStateRef.current.r = (alphaPPG * dataPoint.r) + ((1 - alphaPPG) * filterStateRef.current.r);
+                  filterStateRef.current.i = (alphaPPG * dataPoint.i) + ((1 - alphaPPG) * filterStateRef.current.i);
+                  filterStateRef.current.g = (alphaPPG * dataPoint.g) + ((1 - alphaPPG) * filterStateRef.current.g);
+                  filterStateRef.current.f = (alphaForce * dataPoint.f) + ((1 - alphaForce) * filterStateRef.current.f);
+
+                  processedData.r = Math.round(filterStateRef.current.r);
+                  processedData.i = Math.round(filterStateRef.current.i);
+                  processedData.g = Math.round(filterStateRef.current.g);
+                  processedData.f = Math.round(filterStateRef.current.f);
+                }
                 
-                // Update latest
-                setLatestData(dataPoint);
-                
-                // Update history
+                setLatestData(processedData);
                 setHistory(prev => {
-                  const newHist = [...prev, dataPoint];
-                  if (newHist.length > 100) newHist.shift(); // Keep last 100 points
+                  const newHist = [...prev, processedData];
+                  if (newHist.length > 100) newHist.shift();
                   return newHist;
                 });
 
-                // Update recording (Use the Ref here to avoid stale closure)
                 if (isRecordingRef.current) {
-                  recordedDataRef.current.push(dataPoint);
+                  recordedDataRef.current.push(processedData);
                 }
-              } catch (e) {
-                // Ignore malformed JSON during startup
-              }
+              } catch (e) {}
             }
           }
         }
@@ -119,5 +142,15 @@ export const useSerial = () => {
     }
   };
 
-  return { connect, disconnect, isConnected, latestData, history, isRecording, toggleRecording };
+  return { 
+    connect, 
+    disconnect, 
+    isConnected, 
+    latestData, 
+    history, 
+    isRecording, 
+    toggleRecording,
+    isFiltered,
+    toggleFilter
+  };
 };
