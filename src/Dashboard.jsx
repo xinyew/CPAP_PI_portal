@@ -58,49 +58,75 @@ const Dashboard = () => {
         </div>
       </header>
 
-      {/* PPG Chart Card */}
-      <div className="glass-card ppg-card">
+      {/* Red PPG Chart Card */}
+      <div className="glass-card ppg-sub-card">
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
-          <Activity color="var(--accent-red)" size={20} />
-          <h2>Photoplethysmogram (PPG)</h2>
+          <Activity color="var(--accent-red)" size={18} />
+          <h2 style={{ fontSize: '1rem' }}>PPG Red</h2>
         </div>
-        <ResponsiveContainer width="100%" height="90%">
+        <ResponsiveContainer width="100%" height="70%">
           <LineChart data={history}>
             <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
-            <XAxis dataKey="timestamp" hide domain={['auto', 'auto']} />
-            <YAxis stroke="var(--text-dim)" fontSize={12} domain={['auto', 'auto']} />
-            <Tooltip 
-              contentStyle={{ background: '#1e293b', border: '1px solid var(--border-glass)', borderRadius: '8px' }}
-              labelStyle={{ display: 'none' }}
-            />
-            <Legend verticalAlign="top" height={36}/>
-            <Line type="monotone" dataKey="r" stroke="var(--accent-red)" strokeWidth={2} dot={false} name="Red LED" isAnimationActive={false} />
-            <Line type="monotone" dataKey="i" stroke="var(--accent-violet)" strokeWidth={2} dot={false} name="IR LED" isAnimationActive={false} />
-            <Line type="monotone" dataKey="g" stroke="var(--accent-green)" strokeWidth={2} dot={false} name="Green LED" isAnimationActive={false} />
+            <XAxis dataKey="timestamp" hide />
+            <YAxis stroke="var(--text-dim)" fontSize={10} domain={['auto', 'auto']} hide />
+            <Line type="monotone" dataKey="r" stroke="var(--accent-red)" strokeWidth={2} dot={false} isAnimationActive={false} />
           </LineChart>
         </ResponsiveContainer>
+        <div style={{ textAlign: 'right', fontSize: '1.25rem', fontWeight: '700' }}>{latestData.r}</div>
+      </div>
+
+      {/* IR PPG Chart Card */}
+      <div className="glass-card ppg-sub-card">
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
+          <Activity color="var(--accent-violet)" size={18} />
+          <h2 style={{ fontSize: '1rem' }}>PPG IR</h2>
+        </div>
+        <ResponsiveContainer width="100%" height="70%">
+          <LineChart data={history}>
+            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+            <XAxis dataKey="timestamp" hide />
+            <YAxis stroke="var(--text-dim)" fontSize={10} domain={['auto', 'auto']} hide />
+            <Line type="monotone" dataKey="i" stroke="var(--accent-violet)" strokeWidth={2} dot={false} isAnimationActive={false} />
+          </LineChart>
+        </ResponsiveContainer>
+        <div style={{ textAlign: 'right', fontSize: '1.25rem', fontWeight: '700' }}>{latestData.i}</div>
+      </div>
+
+      {/* Green PPG Chart Card */}
+      <div className="glass-card ppg-sub-card">
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
+          <Activity color="var(--accent-green)" size={18} />
+          <h2 style={{ fontSize: '1rem' }}>PPG Green</h2>
+        </div>
+        <ResponsiveContainer width="100%" height="70%">
+          <LineChart data={history}>
+            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+            <XAxis dataKey="timestamp" hide />
+            <YAxis stroke="var(--text-dim)" fontSize={10} domain={['auto', 'auto']} hide />
+            <Line type="monotone" dataKey="g" stroke="var(--accent-green)" strokeWidth={2} dot={false} isAnimationActive={false} />
+          </LineChart>
+        </ResponsiveContainer>
+        <div style={{ textAlign: 'right', fontSize: '1.25rem', fontWeight: '700' }}>{latestData.g}</div>
       </div>
 
       {/* Environment Telemetry Card */}
       <div className="glass-card env-card">
         <div className="telemetry-item">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
-            <Thermometer color="var(--accent-blue)" size={18} />
-            <span className="telemetry-label">Temperature</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
+            <Thermometer color="var(--accent-blue)" size={16} />
+            <span className="telemetry-label">Temp</span>
           </div>
-          <div className="telemetry-value">
+          <div className="telemetry-value" style={{ fontSize: '1.75rem' }}>
             {latestData.t.toFixed(1)}<span className="telemetry-unit">°C</span>
           </div>
         </div>
 
-        <div style={{ height: '1px', background: 'var(--border-glass)', margin: '1rem 0' }} />
-
         <div className="telemetry-item">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
-            <Droplets color="var(--accent-blue)" size={18} />
-            <span className="telemetry-label">Humidity</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
+            <Droplets color="var(--accent-blue)" size={16} />
+            <span className="telemetry-label">Hum</span>
           </div>
-          <div className="telemetry-value">
+          <div className="telemetry-value" style={{ fontSize: '1.75rem' }}>
             {latestData.h.toFixed(1)}<span className="telemetry-unit">%</span>
           </div>
         </div>

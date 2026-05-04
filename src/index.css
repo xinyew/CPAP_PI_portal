@@ -68,9 +68,9 @@ body {
   align-items: center;
 }
 
-.ppg-card {
-  grid-column: span 8;
-  height: 400px;
+.ppg-sub-card {
+  grid-column: span 4;
+  height: 250px;
 }
 
 .env-card {
@@ -78,6 +78,7 @@ body {
   display: flex;
   flex-direction: column;
   justify-content: space-around;
+  height: 250px;
 }
 
 .force-card {
