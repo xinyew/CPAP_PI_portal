@@ -100,24 +100,26 @@ export const useSerial = () => {
               try {
                 const data = JSON.parse(line);
                 
-                // Validate that data has all expected fields to prevent UI crashes
-                if (data.r === undefined || data.t === undefined) continue;
+                // STRICT VALIDATION: Ensure all fields exist and are numbers
+                const required = ['r', 'i', 'g', 'f', 't', 'h'];
+                const isValid = required.every(key => typeof data[key] === 'number');
+                if (!isValid) continue;
 
                 const timestamp = Date.now();
                 const dataPoint = { ...data, timestamp };
                 let processedData = { ...dataPoint };
 
-                // Apply Exponential Moving Average (EMA) if filtered (using Ref for async loop)
+                // Apply Exponential Moving Average (EMA) if filtered
                 if (isFilteredRef.current) {
-                  // Initialize filter state with first value if zero or invalid
-                  if (!filterStateRef.current || filterStateRef.current.r === 0) {
-                    filterStateRef.current = { ...dataPoint };
+                  // Initialize filter state if needed
+                  if (!filterStateRef.current || isNaN(filterStateRef.current.r)) {
+                    filterStateRef.current = { r: data.r, i: data.i, g: data.g, f: data.f };
                   }
 
-                  filterStateRef.current.r = (alphaPPG * dataPoint.r) + ((1 - alphaPPG) * filterStateRef.current.r);
-                  filterStateRef.current.i = (alphaPPG * dataPoint.i) + ((1 - alphaPPG) * filterStateRef.current.i);
-                  filterStateRef.current.g = (alphaPPG * dataPoint.g) + ((1 - alphaPPG) * filterStateRef.current.g);
-                  filterStateRef.current.f = (alphaForce * dataPoint.f) + ((1 - alphaForce) * filterStateRef.current.f);
+                  filterStateRef.current.r = (alphaPPG * data.r) + ((1 - alphaPPG) * filterStateRef.current.r);
+                  filterStateRef.current.i = (alphaPPG * data.i) + ((1 - alphaPPG) * filterStateRef.current.i);
+                  filterStateRef.current.g = (alphaPPG * data.g) + ((1 - alphaPPG) * filterStateRef.current.g);
+                  filterStateRef.current.f = (alphaForce * data.f) + ((1 - alphaForce) * filterStateRef.current.f);
 
                   processedData.r = Math.round(filterStateRef.current.r);
                   processedData.i = Math.round(filterStateRef.current.i);
@@ -128,8 +130,7 @@ export const useSerial = () => {
                 setLatestData(processedData);
                 setHistory(prev => {
                   const newHist = [...prev, processedData];
-                  if (newHist.length > 100) newHist.shift();
-                  return newHist;
+                  return newHist.slice(-100); // Keep last 100 points
                 });
 
                 if (isRecordingRef.current) {
