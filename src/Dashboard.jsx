@@ -133,6 +133,26 @@ const Dashboard = () => {
             {(latestData.h || 0).toFixed(1)}<span className="telemetry-unit">%</span>
           </div>
         </div>
+
+        <div className="telemetry-item" style={{ borderLeft: '1px solid var(--border-glass)', paddingLeft: '1.5rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
+            <Activity color="var(--accent-green)" size={16} />
+            <span className="telemetry-label">R-FSR</span>
+          </div>
+          <div className="telemetry-value" style={{ fontSize: '1.75rem' }}>
+            {(latestData.res / 1000 || 0).toFixed(1)}<span className="telemetry-unit">kΩ</span>
+          </div>
+        </div>
+
+        <div className="telemetry-item">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
+            <Zap color="var(--accent-yellow)" size={16} />
+            <span className="telemetry-label">Vref</span>
+          </div>
+          <div className="telemetry-value" style={{ fontSize: '1.75rem' }}>
+            {latestData.v || 0}<span className="telemetry-unit">mV</span>
+          </div>
+        </div>
       </div>
 
       {/* Force Sensor Chart Card */}

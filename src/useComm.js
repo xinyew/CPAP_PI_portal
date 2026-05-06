@@ -18,7 +18,7 @@ export const useComm = () => {
   const alphaForce = 0.1;
   const filterStateRef = useRef({ r: 0, i: 0, g: 0, f: 0 });
 
-  const [latestData, setLatestData] = useState({ r: 0, i: 0, g: 0, f: 0, t: 0, h: 0 });
+  const [latestData, setLatestData] = useState({ r: 0, i: 0, g: 0, f: 0, v: 0, res: 0, t: 0, h: 0 });
   const [history, setHistory] = useState([]);
   const recordedDataRef = useRef([]);
 
@@ -27,7 +27,7 @@ export const useComm = () => {
     if (line.startsWith('{') && line.endsWith('}')) {
       try {
         const data = JSON.parse(line);
-        const required = ['r', 'i', 'g', 'f', 't', 'h'];
+        const required = ['r', 'i', 'g', 'f', 'v', 'res', 't', 'h'];
         if (!required.every(key => typeof data[key] === 'number')) return;
 
         const timestamp = Date.now();
@@ -141,9 +141,9 @@ export const useComm = () => {
 
   const exportToCsv = () => {
     if (recordedDataRef.current.length === 0) return;
-    const headers = "Timestamp,Red,IR,Green,Force_mV,Temp_C,Humidity_RH\n";
+    const headers = "Timestamp,Red,IR,Green,TIA_Vout_mV,Vref_mV,Resistance_Ohm,Temp_C,Humidity_RH\n";
     const csvContent = recordedDataRef.current.map(d => 
-      `${d.timestamp},${d.r},${d.i},${d.g},${d.f},${d.t},${d.h}`
+      `${d.timestamp},${d.r},${d.i},${d.g},${d.f},${d.v},${d.res},${d.t},${d.h}`
     ).join("\n");
     const blob = new Blob([headers + csvContent], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
