@@ -9,7 +9,7 @@ import {
   ResponsiveContainer,
   Legend
 } from 'recharts';
-import { Activity, Thermometer, Droplets, Zap, Download, Play, Square, Bluetooth, Usb } from 'lucide-react';
+import { Activity, Thermometer, Droplets, Zap, Download, Play, Square, Bluetooth, Usb, Gauge } from 'lucide-react';
 import { useComm } from './useComm';
 
 const Dashboard = () => {
@@ -134,6 +134,16 @@ const Dashboard = () => {
           </div>
         </div>
 
+        <div className="telemetry-item">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
+            <Thermometer color="var(--accent-amber)" size={16} />
+            <span className="telemetry-label">P-Temp</span>
+          </div>
+          <div className="telemetry-value" style={{ fontSize: '1.75rem' }}>
+            {(latestData.pt || 0).toFixed(1)}<span className="telemetry-unit">°C</span>
+          </div>
+        </div>
+
         <div className="telemetry-item" style={{ borderLeft: '1px solid var(--border-glass)', paddingLeft: '1.5rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
             <Activity color="var(--accent-green)" size={16} />
@@ -165,12 +175,32 @@ const Dashboard = () => {
           <LineChart data={history}>
             <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
             <XAxis dataKey="timestamp" hide />
-            <YAxis stroke="var(--text-dim)" fontSize={12} label={{ value: 'mV', angle: -90, position: 'insideLeft', fill: 'var(--text-dim)' }} />
+            <YAxis stroke="var(--text-dim)" fontSize={12} domain={['auto', 'auto']} label={{ value: 'mV', angle: -90, position: 'insideLeft', fill: 'var(--text-dim)' }} />
             <Tooltip 
               contentStyle={{ background: '#1e293b', border: '1px solid var(--border-glass)', borderRadius: '8px' }}
               labelStyle={{ display: 'none' }}
             />
             <Line type="monotone" dataKey="f" stroke="var(--accent-violet)" strokeWidth={3} dot={false} name="Force (mV)" isAnimationActive={false} />
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
+
+      {/* Pressure Sensor Chart Card */}
+      <div className="glass-card force-card">
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
+          <Gauge color="var(--accent-amber)" size={20} />
+          <h2>Pressure Sensor (MS5611)</h2>
+        </div>
+        <ResponsiveContainer width="100%" height="80%">
+          <LineChart data={history}>
+            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+            <XAxis dataKey="timestamp" hide />
+            <YAxis stroke="var(--text-dim)" fontSize={12} domain={['auto', 'auto']} label={{ value: 'mbar', angle: -90, position: 'insideLeft', fill: 'var(--text-dim)' }} />
+            <Tooltip
+              contentStyle={{ background: '#1e293b', border: '1px solid var(--border-glass)', borderRadius: '8px' }}
+              labelStyle={{ display: 'none' }}
+            />
+            <Line type="monotone" dataKey="p" stroke="var(--accent-amber)" strokeWidth={3} dot={false} name="Pressure (mbar)" isAnimationActive={false} />
           </LineChart>
         </ResponsiveContainer>
       </div>
