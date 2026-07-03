@@ -144,6 +144,28 @@ button.recording {
   animation: pulse 2s infinite;
 }
 
+/* Stop/Resume — freeze the display without disconnecting */
+button.pause {
+  background: transparent;
+  color: var(--accent-violet);
+  border: 1px solid var(--accent-violet);
+}
+button.pause.active { background: var(--accent-violet); color: #000; }
+
+/* Demo mode — synthetic stream, no hardware needed */
+button.demo {
+  background: transparent;
+  color: var(--accent-amber);
+  border: 1px solid var(--accent-amber);
+}
+button.demo.active { background: var(--accent-amber); color: #000; }
+
+.status-paused {
+  background: rgba(187, 134, 252, 0.1);
+  color: var(--accent-violet);
+  border: 1px solid rgba(187, 134, 252, 0.2);
+}
+
 @keyframes pulse {
   0% { opacity: 1; }
   50% { opacity: 0.6; }
@@ -166,6 +188,13 @@ button.recording {
   font-size: 2.5rem;
   font-weight: 800;
   color: #fff;
+  /* Monospaced digits so changing values don't wobble the layout */
+  font-variant-numeric: tabular-nums;
+}
+
+/* Any live numeric readout: digits update in place */
+.num {
+  font-variant-numeric: tabular-nums;
 }
 
 .telemetry-unit {

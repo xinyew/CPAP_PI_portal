@@ -30,11 +30,16 @@ export const useComm = () => {
   const [commMode, setCommMode] = useState('bluetooth'); // 'bluetooth' or 'rtt'
   const [isRecording, setIsRecording] = useState(false);
   const [isFiltered, setIsFiltered] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
+  const [isDemo, setIsDemo] = useState(false);
 
   const isRecordingRef = useRef(false);
   const isFilteredRef = useRef(false);
+  const isPausedRef = useRef(false);
   const deviceRef = useRef(null);
   const wsRef = useRef(null);
+  const demoTimerRef = useRef(null);
+  const demoTickRef = useRef(0);
 
   const alphaPPG = 0.15;
   const alphaForce = 0.1;
@@ -44,6 +49,11 @@ export const useComm = () => {
   const [history, setHistory] = useState([]);
   const statusRef = useRef({});
   const recordedDataRef = useRef([]);
+
+  // Timestamp of the first sample of this session — charts show seconds
+  // elapsed since the stream started.
+  const [streamStart, setStreamStart] = useState(null);
+  const streamStartRef = useRef(null);
 
   const applyFilter = (point) => {
     if (!isFilteredRef.current) return point;
@@ -59,15 +69,22 @@ export const useComm = () => {
   };
 
   const pushPoints = (points) => {
+    if (points.length && streamStartRef.current === null) {
+      streamStartRef.current = points[0].timestamp;
+      setStreamStart(points[0].timestamp);
+    }
     const processed = points.map(applyFilter);
-    const last = processed[processed.length - 1];
-    setLatestData(prev => ({ ...prev, ...last, ...statusRef.current }));
-    setHistory(prev => [...prev, ...processed].slice(-HISTORY_LEN));
+    // Recording keeps capturing even while the display is paused
     if (isRecordingRef.current) {
       for (const p of processed) {
         recordedDataRef.current.push({ ...p, ...statusRef.current });
       }
     }
+    // Stop (pause) freezes the charts without dropping the connection
+    if (isPausedRef.current) return;
+    const last = processed[processed.length - 1];
+    setLatestData(prev => ({ ...prev, ...last, ...statusRef.current }));
+    setHistory(prev => [...prev, ...processed].slice(-HISTORY_LEN));
   };
 
   const readU24 = (dv, off) => dv.getUint16(off, true) + (dv.getUint8(off + 2) << 16);
@@ -224,7 +241,62 @@ export const useComm = () => {
     }
   };
 
+  // ── Demo mode: synthetic 3xPPG + 3xFSR + 6xBaro stream, no hardware ──
+  // Emits a batch of 4 samples every 40 ms (like a 100 Hz binary DATA frame).
+  const demoBatch = () => {
+    const now = Date.now();
+    const pts = [];
+    for (let j = 0; j < 4; j++) {
+      const k = demoTickRef.current++;
+      const t = k / 100; // seconds
+      const beat = Math.sin(2 * Math.PI * 1.2 * t) + 0.3 * Math.sin(2 * Math.PI * 2.4 * t + 1.2);
+      const nz = () => (Math.random() - 0.5) * 60;
+      const pt = { timestamp: now - (3 - j) * 10 };
+      for (let s = 0; s < 3; s++) {
+        pt[`r${s + 1}`] = Math.round(52000 + s * 1000 + 1500 * beat + nz());
+        pt[`i${s + 1}`] = Math.round(98000 + s * 1000 + 2600 * beat + nz());
+        pt[`g${s + 1}`] = Math.round(23000 + s * 800 + 900 * beat + nz());
+      }
+      pt.f1 = Math.round(450 + 120 * Math.sin(2 * Math.PI * 0.15 * t));
+      pt.f2 = Math.round(500 + 100 * Math.sin(2 * Math.PI * 0.15 * t + 1));
+      pt.f3 = Math.round(400 + 90 * Math.sin(2 * Math.PI * 0.15 * t + 2));
+      pt.v = 300;
+      for (let b = 0; b < 6; b++) pt[`p${b + 1}`] = 1013 + b * 0.5 + 4 * Math.sin(2 * Math.PI * 0.2 * t + b);
+      pts.push(pt);
+    }
+    statusRef.current = {
+      t: 24.5, h: 45.2, pt: 25.1,
+      res1: 12000, res2: 15000, res3: 9000,
+      ppgRate: 100, fsrRate: 100, baroRate: 100,
+      ppgMask: 0b111, baroMask: 0b111111,
+    };
+    pushPoints(pts);
+  };
+
+  const toggleDemo = () => {
+    if (demoTimerRef.current) {
+      clearInterval(demoTimerRef.current);
+      demoTimerRef.current = null;
+      setIsDemo(false);
+      setIsConnected(false);
+    } else {
+      demoTickRef.current = 0;
+      streamStartRef.current = null;
+      setIsConnected(true);
+      setIsDemo(true);
+      demoTimerRef.current = setInterval(demoBatch, 40);
+    }
+  };
+
+  const togglePause = () => {
+    const next = !isPaused;
+    setIsPaused(next);
+    isPausedRef.current = next;
+  };
+
   const connect = () => {
+    if (isDemo) toggleDemo(); // stop demo before a real connection
+    streamStartRef.current = null; // restart the elapsed-time clock
     if (commMode === 'rtt') connectRtt();
     else connectBluetooth();
   };
@@ -269,6 +341,9 @@ export const useComm = () => {
   return {
     connect, disconnect, isConnected, latestData, history,
     isRecording, toggleRecording, isFiltered, toggleFilter,
+    isPaused, togglePause,
+    isDemo, toggleDemo,
+    streamStart,
     commMode, setCommMode
   };
 };
