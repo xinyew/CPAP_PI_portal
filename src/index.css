@@ -204,6 +204,59 @@ button.demo.active { background: var(--accent-amber); color: #000; }
   font-variant-numeric: tabular-nums;
 }
 
+/* Chart-controls toolbar (window + PPG mode) */
+.toolbar-card {
+  grid-column: span 12;
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+  padding: 0.75rem 1.5rem;
+}
+.toolbar-label {
+  font-size: 0.8rem;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* Segmented control (window presets, RAW/AC) */
+.segmented {
+  display: flex;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 0.75rem;
+  padding: 0.25rem;
+  border: 1px solid var(--border-glass);
+}
+button.segment {
+  background: transparent;
+  color: var(--text-dim);
+  padding: 0.4rem 0.9rem;
+  font-size: 0.85rem;
+}
+button.segment:hover { transform: none; filter: none; color: #e2e8f0; }
+button.segment.active { background: var(--accent-blue); color: #000; }
+
+/* Filter strength (Smooth) input */
+.alpha-field {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--accent-green);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+.alpha-field input {
+  width: 4.2rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-glass);
+  border-radius: 0.5rem;
+  color: #e2e8f0;
+  padding: 0.5rem;
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+}
+.alpha-field input:focus { outline: 1px solid var(--accent-green); }
+
 .telemetry-unit {
   font-size: 1rem;
   color: var(--text-dim);

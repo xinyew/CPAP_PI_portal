@@ -11,7 +11,10 @@ const TYPE_STATUS = 0x02;
 const TICK_MS = 10;
 
 const WAVE_KEYS = ['r1','i1','g1','r2','i2','g2','r3','i3','g3','f1','f2','f3'];
-const HISTORY_LEN = 300;
+const PPG_KEYS = ['r1','i1','g1','r2','i2','g2','r3','i3','g3'];
+// ~5 s at the 100 Hz sample rate — covers the longest selectable PPG window.
+const HISTORY_LEN = 500;
+const AC_BASELINE_ALPHA = 0.02; // slow EMA removed to expose the pulsatile (AC) part
 
 const emptyLatest = {
   r1: 0, i1: 0, g1: 0, r2: 0, i2: 0, g2: 0, r3: 0, i3: 0, g3: 0,
@@ -41,9 +44,18 @@ export const useComm = () => {
   const demoTimerRef = useRef(null);
   const demoTickRef = useRef(0);
 
-  const alphaPPG = 0.15;
+  // PPG smoothing strength for Filter ON — user-adjustable (0.01–1).
+  // Smaller = stronger smoothing; 1 = no smoothing. Force keeps a fixed alpha.
+  const [filterAlpha, setFilterAlphaState] = useState(0.15);
+  const filterAlphaRef = useRef(0.15);
+  const setFilterAlpha = (v) => {
+    const a = Math.min(1, Math.max(0.01, Number(v) || 0.15));
+    setFilterAlphaState(a);
+    filterAlphaRef.current = a;
+  };
   const alphaForce = 0.1;
   const filterStateRef = useRef({});
+  const baselineRef = useRef({}); // per-PPG-channel slow baseline for AC mode
 
   const [latestData, setLatestData] = useState(emptyLatest);
   const [history, setHistory] = useState([]);
@@ -71,7 +83,7 @@ export const useComm = () => {
     const fs = filterStateRef.current;
     const out = { ...point };
     for (const key of WAVE_KEYS) {
-      const alpha = key.startsWith('f') ? alphaForce : alphaPPG;
+      const alpha = key.startsWith('f') ? alphaForce : filterAlphaRef.current;
       if (fs[key] === undefined || isNaN(fs[key])) fs[key] = point[key];
       fs[key] = alpha * point[key] + (1 - alpha) * fs[key];
       out[key] = Math.round(fs[key]);
@@ -85,6 +97,16 @@ export const useComm = () => {
       setStreamStart(points[0].timestamp);
     }
     const processed = points.map(applyFilter);
+    // AC extraction for PPG channels: value minus a slow baseline, computed
+    // after smoothing so the Smooth control affects AC traces too.
+    const bl = baselineRef.current;
+    for (const p of processed) {
+      for (const key of PPG_KEYS) {
+        if (bl[key] === undefined || isNaN(bl[key])) bl[key] = p[key];
+        bl[key] = AC_BASELINE_ALPHA * p[key] + (1 - AC_BASELINE_ALPHA) * bl[key];
+        p[`${key}Ac`] = Math.round(p[key] - bl[key]);
+      }
+    }
     // Attach a pending marker to the most recent sample of this batch so it
     // flows to BOTH the recorded copy and the on-screen history.
     if (markNextRef.current) {
@@ -364,6 +386,7 @@ export const useComm = () => {
     isPaused, togglePause,
     isDemo, toggleDemo,
     markCount, addMark,
+    filterAlpha, setFilterAlpha,
     streamStart,
     commMode, setCommMode
   };

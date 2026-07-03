@@ -21,6 +21,18 @@ const BARO_COLORS      = ['#fde68a', '#fcd34d', '#fbbf24', '#f59e0b', '#d97706',
 
 const fmtRes = (r) => (r === undefined || r < 0) ? '--' : (r / 1000).toFixed(1);
 
+const WINDOW_OPTIONS = ['full', 2, 5]; // seconds ('full' = whole buffer)
+
+// Slice by real timestamps so a window means honest seconds regardless of the
+// actual delivery rate.
+const lastSeconds = (history, seconds) => {
+  if (history.length === 0) return history;
+  const cutoff = history[history.length - 1].timestamp - seconds * 1000;
+  let i = history.length - 1;
+  while (i > 0 && history[i - 1].timestamp >= cutoff) i--;
+  return history.slice(i);
+};
+
 // Shared dark tooltip; label shows elapsed seconds via labelFormatter set per chart.
 const tooltipContentStyle = { background: '#1e293b', border: '1px solid var(--border-glass)', borderRadius: '8px' };
 const tooltipLabelStyle = { color: 'var(--text-dim)', fontSize: '0.75rem' };
@@ -41,7 +53,7 @@ const markDot = (props) => {
 
 
 // Single-signal card used by split view
-const MiniChart = ({ title, dataKey, color, history, latest, unit, xTick }) => (
+const MiniChart = ({ title, dataKey, color, data, latest, unit, xAxis, tooltipFmt }) => (
   <div className="glass-card mini-card">
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
       <h2 style={{ fontSize: '0.875rem', color: color }}>{title}</h2>
@@ -50,14 +62,13 @@ const MiniChart = ({ title, dataKey, color, history, latest, unit, xTick }) => (
       </span>
     </div>
     <ResponsiveContainer width="100%" height="72%">
-      <LineChart data={history}>
+      <LineChart data={data}>
         <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
-        <XAxis dataKey="timestamp" tickFormatter={xTick} stroke="var(--text-dim)" fontSize={11}
-               tickLine={false} axisLine={false} minTickGap={60} height={18} />
+        <XAxis {...xAxis} />
         <YAxis stroke="var(--text-dim)" fontSize={11} domain={['auto', 'auto']} width={52}
                label={unit ? { value: unit, angle: -90, position: 'insideLeft', fill: 'var(--text-dim)', fontSize: 11, style: { textAnchor: 'middle' } } : undefined} />
         <Tooltip contentStyle={tooltipContentStyle} labelStyle={tooltipLabelStyle}
-                 labelFormatter={xTick} isAnimationActive={false} />
+                 labelFormatter={tooltipFmt} isAnimationActive={false} />
         <Line type="monotone" dataKey={dataKey} stroke={color} strokeWidth={2} dot={markDot} activeDot={false} isAnimationActive={false} />
       </LineChart>
     </ResponsiveContainer>
@@ -81,12 +92,16 @@ const Dashboard = () => {
     toggleDemo,
     markCount,
     addMark,
+    filterAlpha,
+    setFilterAlpha,
     streamStart,
     commMode,
     setCommMode
   } = useComm();
 
   const [splitView, setSplitView] = useState(false);
+  const [windowSec, setWindowSec] = useState('full'); // 'full' | 2 | 5
+  const [ppgAc, setPpgAc] = useState(false);           // AC (baseline-removed) PPG
 
   // Keyboard shortcut: press M to drop an event marker (ignored in inputs)
   useEffect(() => {
@@ -119,6 +134,25 @@ const Dashboard = () => {
     isAnimationActive: false,
   };
 
+  // Windowed view shared by every chart. 'full' keeps the collaborator's
+  // timestamp axis; a fixed numeric elapsed-seconds domain is used for 2s/5s
+  // so the traces never jitter when the per-frame sample count fluctuates.
+  const isWin = windowSec !== 'full';
+  const viewData = !isWin ? history
+    : lastSeconds(history, windowSec).map(d => ({ ...d, tSec: streamStart ? (d.timestamp - streamStart) / 1000 : 0 }));
+  const tMax = isWin && viewData.length ? viewData[viewData.length - 1].tSec : 0;
+  const winLo = Math.max(0, tMax - windowSec);
+  const winTicks = [];
+  if (isWin) for (let t = Math.ceil(winLo); t <= Math.floor(tMax); t++) winTicks.push(t);
+  const xAxisProps = isWin
+    ? { dataKey: 'tSec', type: 'number', domain: [winLo, tMax], ticks: winTicks, allowDataOverflow: true,
+        tickFormatter: (v) => `${Number(v).toFixed(0)}s`, stroke: 'var(--text-dim)', fontSize: 12,
+        tickLine: false, axisLine: false, height: 22 }
+    : timeAxisProps;
+  const xTooltip = { ...tooltipProps, labelFormatter: isWin ? (v) => `${Number(v).toFixed(1)}s` : fmtElapsed };
+  // AC mode swaps PPG channels to their baseline-removed (…Ac) counterparts
+  const ppgKey = (k) => (ppgAc ? `${k}Ac` : k);
+
   const livePpg = [0, 1, 2].filter(s => (latestData.ppgMask & (1 << s)) !== 0);
   const liveBaro = [0, 1, 2, 3, 4, 5].filter(b => (latestData.baroMask & (1 << b)) !== 0);
 
@@ -131,22 +165,22 @@ const Dashboard = () => {
         <h2 style={{ fontSize: '1rem' }}>{title}</h2>
       </div>
       <ResponsiveContainer width="100%" height="70%">
-        <LineChart data={history}>
+        <LineChart data={viewData}>
           <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
-          <XAxis {...timeAxisProps} />
+          <XAxis {...xAxisProps} />
           <YAxis stroke="var(--text-dim)" fontSize={11} domain={['auto', 'auto']} width={58}
-                 label={{ value: 'counts', angle: -90, position: 'insideLeft', fill: 'var(--text-dim)', fontSize: 11, style: { textAnchor: 'middle' } }} />
-          <Tooltip {...tooltipProps} />
+                 label={{ value: ppgAc ? 'AC counts' : 'counts', angle: -90, position: 'insideLeft', fill: 'var(--text-dim)', fontSize: 11, style: { textAnchor: 'middle' } }} />
+          <Tooltip {...xTooltip} />
           {keys.map((k, idx) => (
             (latestData.ppgMask & (1 << idx)) !== 0 &&
-            <Line key={k} type="monotone" dataKey={k} stroke={colors[idx]}
+            <Line key={k} type="monotone" dataKey={ppgKey(k)} stroke={colors[idx]}
                   strokeWidth={2} dot={idx === firstLive ? markDot : false} activeDot={false}
                   name={`S${idx + 1}`} isAnimationActive={false} />
           ))}
         </LineChart>
       </ResponsiveContainer>
       <div className="num" style={{ textAlign: 'right', fontSize: '1.25rem', fontWeight: '700' }}>
-        {latestData[latestKey] || 0}
+        {latestData[ppgKey(latestKey)] || 0}
       </div>
     </div>
     );
@@ -260,6 +294,15 @@ const Dashboard = () => {
                 {isFiltered ? 'Filter ON' : 'Filter OFF'}
               </button>
 
+              {/* Smoothing strength for Filter ON: smaller = stronger (0.01–1) */}
+              <label className="alpha-field" style={{ opacity: isFiltered ? 1 : 0.35 }}
+                     title={isFiltered ? 'Filter 강도 (0.01–1) — 작을수록 강하게 평활, 1 = 필터 없음'
+                                       : 'Filter ON일 때만 동작합니다'}>
+                Smooth
+                <input type="number" min="0.01" max="1" step="0.01" disabled={!isFiltered}
+                       defaultValue={filterAlpha} onChange={(e) => setFilterAlpha(e.target.value)} />
+              </label>
+
               <button
                 className={isRecording ? 'recording' : ''}
                 onClick={toggleRecording}
@@ -328,30 +371,55 @@ const Dashboard = () => {
         </div>
       </div>
 
+      {/* Chart controls: time window + PPG AC/RAW mode */}
+      <div className="glass-card toolbar-card">
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+          <span className="toolbar-label">Window</span>
+          <div className="segmented">
+            {WINDOW_OPTIONS.map(opt => (
+              <button key={opt} className={`segment ${windowSec === opt ? 'active' : ''}`}
+                      onClick={() => setWindowSec(opt)}
+                      title={opt === 'full' ? '전체 버퍼(최근 5초)' : `최근 ${opt}초(실제 시간 기준)`}>
+                {opt === 'full' ? 'Full' : `${opt}s`}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+          <span className="toolbar-label">PPG</span>
+          <div className="segmented">
+            <button className={`segment ${!ppgAc ? 'active' : ''}`} onClick={() => setPpgAc(false)}
+                    title="센서 원시값 (DC 포함)">RAW</button>
+            <button className={`segment ${ppgAc ? 'active' : ''}`} onClick={() => setPpgAc(true)}
+                    title="느린 드리프트를 제거해 맥파만 표시">AC</button>
+          </div>
+        </div>
+      </div>
+
       {splitView ? (
         <>
           {/* Split view: one card per live signal */}
           {[0, 1, 2].map(i => (
             <MiniChart key={`f${i + 1}`} title={`FSR ${i + 1}`} dataKey={`f${i + 1}`}
-                       color={FORCE_COLORS[i]} history={history} xTick={fmtElapsed}
+                       color={FORCE_COLORS[i]} data={viewData} xAxis={xAxisProps} tooltipFmt={xTooltip.labelFormatter}
                        latest={latestData[`f${i + 1}`] || 0} unit="mV" />
           ))}
           {liveBaro.map(b => (
             <MiniChart key={`p${b + 1}`} title={`Pressure ${b + 1}`} dataKey={`p${b + 1}`}
-                       color={BARO_COLORS[b]} history={history} xTick={fmtElapsed}
+                       color={BARO_COLORS[b]} data={viewData} xAxis={xAxisProps} tooltipFmt={xTooltip.labelFormatter}
                        latest={(latestData[`p${b + 1}`] || 0).toFixed(1)} unit="mbar" />
           ))}
           {livePpg.map(s => (
             <React.Fragment key={`ppg${s}`}>
-              <MiniChart title={`PPG ${s + 1} Red`} dataKey={`r${s + 1}`}
-                         color={PPG_RED_COLORS[s]} history={history} xTick={fmtElapsed}
-                         latest={latestData[`r${s + 1}`] || 0} unit="counts" />
-              <MiniChart title={`PPG ${s + 1} IR`} dataKey={`i${s + 1}`}
-                         color={PPG_IR_COLORS[s]} history={history} xTick={fmtElapsed}
-                         latest={latestData[`i${s + 1}`] || 0} unit="counts" />
-              <MiniChart title={`PPG ${s + 1} Green`} dataKey={`g${s + 1}`}
-                         color={PPG_GREEN_COLORS[s]} history={history} xTick={fmtElapsed}
-                         latest={latestData[`g${s + 1}`] || 0} unit="counts" />
+              <MiniChart title={`PPG ${s + 1} Red${ppgAc ? ' (AC)' : ''}`} dataKey={ppgKey(`r${s + 1}`)}
+                         color={PPG_RED_COLORS[s]} data={viewData} xAxis={xAxisProps} tooltipFmt={xTooltip.labelFormatter}
+                         latest={latestData[ppgKey(`r${s + 1}`)] || 0} unit="counts" />
+              <MiniChart title={`PPG ${s + 1} IR${ppgAc ? ' (AC)' : ''}`} dataKey={ppgKey(`i${s + 1}`)}
+                         color={PPG_IR_COLORS[s]} data={viewData} xAxis={xAxisProps} tooltipFmt={xTooltip.labelFormatter}
+                         latest={latestData[ppgKey(`i${s + 1}`)] || 0} unit="counts" />
+              <MiniChart title={`PPG ${s + 1} Green${ppgAc ? ' (AC)' : ''}`} dataKey={ppgKey(`g${s + 1}`)}
+                         color={PPG_GREEN_COLORS[s]} data={viewData} xAxis={xAxisProps} tooltipFmt={xTooltip.labelFormatter}
+                         latest={latestData[ppgKey(`g${s + 1}`)] || 0} unit="counts" />
             </React.Fragment>
           ))}
         </>
@@ -364,11 +432,11 @@ const Dashboard = () => {
               <h2>Force Sensors (ESS102 x3)</h2>
             </div>
             <ResponsiveContainer width="100%" height="80%">
-              <LineChart data={history}>
+              <LineChart data={viewData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
-                <XAxis {...timeAxisProps} />
+                <XAxis {...xAxisProps} />
                 <YAxis stroke="var(--text-dim)" fontSize={12} width={58} domain={['auto', 'auto']} label={{ value: 'mV', angle: -90, position: 'insideLeft', fill: 'var(--text-dim)', style: { textAnchor: 'middle' } }} />
-                <Tooltip {...tooltipProps} />
+                <Tooltip {...xTooltip} />
                 <Legend />
                 {['f1', 'f2', 'f3'].map((k, idx) => (
                   <Line key={k} type="monotone" dataKey={k} stroke={FORCE_COLORS[idx]}
@@ -385,11 +453,11 @@ const Dashboard = () => {
               <h2>Contact Pressure (MS5611 x6)</h2>
             </div>
             <ResponsiveContainer width="100%" height="80%">
-              <LineChart data={history}>
+              <LineChart data={viewData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
-                <XAxis {...timeAxisProps} />
+                <XAxis {...xAxisProps} />
                 <YAxis stroke="var(--text-dim)" fontSize={12} width={58} domain={['auto', 'auto']} label={{ value: 'mbar', angle: -90, position: 'insideLeft', fill: 'var(--text-dim)', style: { textAnchor: 'middle' } }} />
-                <Tooltip {...tooltipProps} />
+                <Tooltip {...xTooltip} />
                 <Legend />
                 {liveBaro.map((b, idx) => (
                   <Line key={b} type="monotone" dataKey={`p${b + 1}`} stroke={BARO_COLORS[b]}
