@@ -88,6 +88,18 @@ body {
   height: 300px;
 }
 
+/* Split view: one signal per card, three per row */
+.mini-card {
+  grid-column: span 4;
+  height: 180px;
+}
+
+@media (max-width: 900px) {
+  .mini-card {
+    grid-column: span 6;
+  }
+}
+
 .status-badge {
   display: flex;
   align-items: center;

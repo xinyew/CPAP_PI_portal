@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   LineChart,
   Line,
@@ -9,7 +9,7 @@ import {
   ResponsiveContainer,
   Legend
 } from 'recharts';
-import { Activity, Thermometer, Droplets, Zap, Download, Play, Square, Bluetooth, Usb, Gauge } from 'lucide-react';
+import { Activity, Thermometer, Droplets, Zap, Download, Play, Square, Bluetooth, Usb, Gauge, LayoutGrid, Layers } from 'lucide-react';
 import { useComm } from './useComm';
 
 // Line colors per sensor instance (1..3 / 1..6)
@@ -20,6 +20,26 @@ const FORCE_COLORS     = ['#d8b4fe', '#a855f7', '#6b21a8'];
 const BARO_COLORS      = ['#fde68a', '#fcd34d', '#fbbf24', '#f59e0b', '#d97706', '#b45309'];
 
 const fmtRes = (r) => (r === undefined || r < 0) ? '--' : (r / 1000).toFixed(1);
+
+// Single-signal card used by split view
+const MiniChart = ({ title, dataKey, color, history, latest, unit }) => (
+  <div className="glass-card mini-card">
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+      <h2 style={{ fontSize: '0.875rem', color: color }}>{title}</h2>
+      <span style={{ fontSize: '1rem', fontWeight: 700 }}>
+        {latest}{unit && <span style={{ fontSize: '0.7rem', color: 'var(--text-dim)' }}> {unit}</span>}
+      </span>
+    </div>
+    <ResponsiveContainer width="100%" height="75%">
+      <LineChart data={history}>
+        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+        <XAxis dataKey="timestamp" hide />
+        <YAxis stroke="var(--text-dim)" fontSize={9} domain={['auto', 'auto']} width={45} />
+        <Line type="monotone" dataKey={dataKey} stroke={color} strokeWidth={2} dot={false} isAnimationActive={false} />
+      </LineChart>
+    </ResponsiveContainer>
+  </div>
+);
 
 const Dashboard = () => {
   const {
@@ -36,8 +56,13 @@ const Dashboard = () => {
     setCommMode
   } = useComm();
 
-  const ppgChart = (title, color, keys, colors, latestKey) => (
-    <div className="glass-card ppg-sub-card">
+  const [splitView, setSplitView] = useState(false);
+
+  const livePpg = [0, 1, 2].filter(s => (latestData.ppgMask & (1 << s)) !== 0);
+  const liveBaro = [0, 1, 2, 3, 4, 5].filter(b => (latestData.baroMask & (1 << b)) !== 0);
+
+  const ppgOverlayChart = (title, color, keys, colors, latestKey) => (
+    <div className="glass-card ppg-sub-card" key={title}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
         <Activity color={color} size={18} />
         <h2 style={{ fontSize: '1rem' }}>{title}</h2>
@@ -106,6 +131,21 @@ const Dashboard = () => {
               </button>
             </div>
           )}
+
+          <button
+            onClick={() => setSplitView(!splitView)}
+            style={{
+              background: 'transparent',
+              color: 'var(--accent-blue)',
+              border: '1px solid var(--accent-blue)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem'
+            }}
+          >
+            {splitView ? <LayoutGrid size={16} /> : <Layers size={16} />}
+            {splitView ? 'Split' : 'Overlay'}
+          </button>
 
           <div className={`status-badge ${isConnected ? 'status-online' : 'status-offline'}`}>
             <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'currentColor' }} />
@@ -199,59 +239,87 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* Force Sensor Chart Card */}
-      <div className="glass-card force-card">
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
-          <Zap color="var(--accent-violet)" size={20} />
-          <h2>Force Sensors (ESS102 x3)</h2>
-        </div>
-        <ResponsiveContainer width="100%" height="80%">
-          <LineChart data={history}>
-            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
-            <XAxis dataKey="timestamp" hide />
-            <YAxis stroke="var(--text-dim)" fontSize={12} domain={['auto', 'auto']} label={{ value: 'mV', angle: -90, position: 'insideLeft', fill: 'var(--text-dim)' }} />
-            <Tooltip
-              contentStyle={{ background: '#1e293b', border: '1px solid var(--border-glass)', borderRadius: '8px' }}
-              labelStyle={{ display: 'none' }}
-            />
-            <Legend />
-            {['f1', 'f2', 'f3'].map((k, idx) => (
-              <Line key={k} type="monotone" dataKey={k} stroke={FORCE_COLORS[idx]}
-                    strokeWidth={2} dot={false} name={`FSR ${idx + 1} (mV)`} isAnimationActive={false} />
-            ))}
-          </LineChart>
-        </ResponsiveContainer>
-      </div>
+      {splitView ? (
+        <>
+          {/* Split view: one card per live signal */}
+          {[0, 1, 2].map(i => (
+            <MiniChart key={`f${i + 1}`} title={`FSR ${i + 1}`} dataKey={`f${i + 1}`}
+                       color={FORCE_COLORS[i]} history={history}
+                       latest={latestData[`f${i + 1}`] || 0} unit="mV" />
+          ))}
+          {liveBaro.map(b => (
+            <MiniChart key={`p${b + 1}`} title={`Pressure ${b + 1}`} dataKey={`p${b + 1}`}
+                       color={BARO_COLORS[b]} history={history}
+                       latest={(latestData[`p${b + 1}`] || 0).toFixed(1)} unit="mbar" />
+          ))}
+          {livePpg.map(s => (
+            <React.Fragment key={`ppg${s}`}>
+              <MiniChart title={`PPG ${s + 1} Red`} dataKey={`r${s + 1}`}
+                         color={PPG_RED_COLORS[s]} history={history}
+                         latest={latestData[`r${s + 1}`] || 0} />
+              <MiniChart title={`PPG ${s + 1} IR`} dataKey={`i${s + 1}`}
+                         color={PPG_IR_COLORS[s]} history={history}
+                         latest={latestData[`i${s + 1}`] || 0} />
+              <MiniChart title={`PPG ${s + 1} Green`} dataKey={`g${s + 1}`}
+                         color={PPG_GREEN_COLORS[s]} history={history}
+                         latest={latestData[`g${s + 1}`] || 0} />
+            </React.Fragment>
+          ))}
+        </>
+      ) : (
+        <>
+          {/* Overlay view: grouped multi-line charts */}
+          <div className="glass-card force-card">
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
+              <Zap color="var(--accent-violet)" size={20} />
+              <h2>Force Sensors (ESS102 x3)</h2>
+            </div>
+            <ResponsiveContainer width="100%" height="80%">
+              <LineChart data={history}>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                <XAxis dataKey="timestamp" hide />
+                <YAxis stroke="var(--text-dim)" fontSize={12} domain={['auto', 'auto']} label={{ value: 'mV', angle: -90, position: 'insideLeft', fill: 'var(--text-dim)' }} />
+                <Tooltip
+                  contentStyle={{ background: '#1e293b', border: '1px solid var(--border-glass)', borderRadius: '8px' }}
+                  labelStyle={{ display: 'none' }}
+                />
+                <Legend />
+                {['f1', 'f2', 'f3'].map((k, idx) => (
+                  <Line key={k} type="monotone" dataKey={k} stroke={FORCE_COLORS[idx]}
+                        strokeWidth={2} dot={false} name={`FSR ${idx + 1} (mV)`} isAnimationActive={false} />
+                ))}
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
 
-      {/* Pressure Sensor Chart Card */}
-      <div className="glass-card force-card">
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
-          <Gauge color="var(--accent-amber)" size={20} />
-          <h2>Contact Pressure (MS5611 x6)</h2>
-        </div>
-        <ResponsiveContainer width="100%" height="80%">
-          <LineChart data={history}>
-            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
-            <XAxis dataKey="timestamp" hide />
-            <YAxis stroke="var(--text-dim)" fontSize={12} domain={['auto', 'auto']} label={{ value: 'mbar', angle: -90, position: 'insideLeft', fill: 'var(--text-dim)' }} />
-            <Tooltip
-              contentStyle={{ background: '#1e293b', border: '1px solid var(--border-glass)', borderRadius: '8px' }}
-              labelStyle={{ display: 'none' }}
-            />
-            <Legend />
-            {[1, 2, 3, 4, 5, 6].map((n) => (
-              (latestData.baroMask & (1 << (n - 1))) !== 0 &&
-              <Line key={n} type="monotone" dataKey={`p${n}`} stroke={BARO_COLORS[n - 1]}
-                    strokeWidth={2} dot={false} name={`P${n}`} isAnimationActive={false} />
-            ))}
-          </LineChart>
-        </ResponsiveContainer>
-      </div>
+          <div className="glass-card force-card">
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
+              <Gauge color="var(--accent-amber)" size={20} />
+              <h2>Contact Pressure (MS5611 x6)</h2>
+            </div>
+            <ResponsiveContainer width="100%" height="80%">
+              <LineChart data={history}>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                <XAxis dataKey="timestamp" hide />
+                <YAxis stroke="var(--text-dim)" fontSize={12} domain={['auto', 'auto']} label={{ value: 'mbar', angle: -90, position: 'insideLeft', fill: 'var(--text-dim)' }} />
+                <Tooltip
+                  contentStyle={{ background: '#1e293b', border: '1px solid var(--border-glass)', borderRadius: '8px' }}
+                  labelStyle={{ display: 'none' }}
+                />
+                <Legend />
+                {liveBaro.map((b) => (
+                  <Line key={b} type="monotone" dataKey={`p${b + 1}`} stroke={BARO_COLORS[b]}
+                        strokeWidth={2} dot={false} name={`P${b + 1}`} isAnimationActive={false} />
+                ))}
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
 
-      {/* PPG Chart Cards — one per color, three sensors per chart */}
-      {ppgChart('PPG Red (x3)', 'var(--accent-red)', ['r1', 'r2', 'r3'], PPG_RED_COLORS, 'r2')}
-      {ppgChart('PPG IR (x3)', 'var(--accent-violet)', ['i1', 'i2', 'i3'], PPG_IR_COLORS, 'i2')}
-      {ppgChart('PPG Green (x3)', 'var(--accent-green)', ['g1', 'g2', 'g3'], PPG_GREEN_COLORS, 'g2')}
+          {ppgOverlayChart('PPG Red (x3)', 'var(--accent-red)', ['r1', 'r2', 'r3'], PPG_RED_COLORS, 'r2')}
+          {ppgOverlayChart('PPG IR (x3)', 'var(--accent-violet)', ['i1', 'i2', 'i3'], PPG_IR_COLORS, 'i2')}
+          {ppgOverlayChart('PPG Green (x3)', 'var(--accent-green)', ['g1', 'g2', 'g3'], PPG_GREEN_COLORS, 'g2')}
+        </>
+      )}
     </div>
   );
 };
