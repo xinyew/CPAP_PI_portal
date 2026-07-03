@@ -23,16 +23,18 @@ const emptyLatest = {
   ppgMask: 0, baroMask: 0,
 };
 
+const RTT_BRIDGE_URL = 'ws://localhost:8765'; // scripts/rtt_bridge.py
+
 export const useComm = () => {
   const [isConnected, setIsConnected] = useState(false);
-  const [commMode, setCommMode] = useState('bluetooth'); // 'serial' or 'bluetooth'
+  const [commMode, setCommMode] = useState('bluetooth'); // 'bluetooth' or 'rtt'
   const [isRecording, setIsRecording] = useState(false);
   const [isFiltered, setIsFiltered] = useState(false);
 
   const isRecordingRef = useRef(false);
   const isFilteredRef = useRef(false);
   const deviceRef = useRef(null);
-  const portRef = useRef(null);
+  const wsRef = useRef(null);
 
   const alphaPPG = 0.15;
   const alphaForce = 0.1;
@@ -132,7 +134,7 @@ export const useComm = () => {
     return true;
   };
 
-  // Legacy JSON line (serial mode / firmware JSON debug mode)
+  // Legacy JSON line (firmware JSON debug mode over BLE)
   const processDataLine = (line) => {
     line = line.trim();
     if (!(line.startsWith('{') && line.endsWith('}'))) return;
@@ -155,28 +157,25 @@ export const useComm = () => {
     } catch (e) {}
   };
 
-  const connectSerial = async () => {
+  // Wired mode: binary frames relayed from SEGGER RTT by
+  // scripts/rtt_bridge.py (requires the J-Link debug probe attached).
+  const connectRtt = () => {
     try {
-      const port = await navigator.serial.requestPort();
-      await port.open({ baudRate: 115200 });
-      portRef.current = port;
-      setIsConnected(true);
+      const ws = new WebSocket(RTT_BRIDGE_URL);
+      ws.binaryType = 'arraybuffer';
+      wsRef.current = ws;
 
-      const textDecoder = new TextDecoderStream();
-      port.readable.pipeTo(textDecoder.writable);
-      const reader = textDecoder.readable.getReader();
-      let buffer = "";
-
-      while (true) {
-        const { value, done } = await reader.read();
-        if (done) break;
-        buffer += value;
-        const lines = buffer.split('\n');
-        buffer = lines.pop();
-        for (let line of lines) processDataLine(line);
-      }
+      ws.onopen = () => setIsConnected(true);
+      ws.onmessage = (event) => {
+        processBinaryFrame(new DataView(event.data));
+      };
+      ws.onclose = () => setIsConnected(false);
+      ws.onerror = (err) => {
+        console.error('RTT bridge error (is rtt_bridge.py running?):', err);
+        setIsConnected(false);
+      };
     } catch (err) {
-      console.error('Serial Error:', err);
+      console.error('RTT Error:', err);
     }
   };
 
@@ -225,7 +224,7 @@ export const useComm = () => {
   };
 
   const connect = () => {
-    if (commMode === 'serial') connectSerial();
+    if (commMode === 'rtt') connectRtt();
     else connectBluetooth();
   };
 

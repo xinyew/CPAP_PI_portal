@@ -9,7 +9,7 @@ import {
   ResponsiveContainer,
   Legend
 } from 'recharts';
-import { Activity, Thermometer, Droplets, Zap, Download, Play, Square, Bluetooth, Usb, Gauge, LayoutGrid, Layers } from 'lucide-react';
+import { Activity, Thermometer, Droplets, Zap, Download, Play, Square, Bluetooth, Cable, Gauge, LayoutGrid, Layers } from 'lucide-react';
 import { useComm } from './useComm';
 
 // Line colors per sensor instance (1..3 / 1..6)
@@ -106,16 +106,16 @@ const Dashboard = () => {
               border: '1px solid var(--border-glass)'
             }}>
               <button
-                onClick={() => setCommMode('serial')}
+                onClick={() => setCommMode('rtt')}
                 style={{
-                  background: commMode === 'serial' ? 'var(--accent-blue)' : 'transparent',
-                  color: commMode === 'serial' ? '#000' : 'var(--text-dim)',
+                  background: commMode === 'rtt' ? 'var(--accent-blue)' : 'transparent',
+                  color: commMode === 'rtt' ? '#000' : 'var(--text-dim)',
                   padding: '0.5rem 1rem',
                   fontSize: '0.875rem'
                 }}
               >
-                <Usb size={16} style={{ marginRight: '0.5rem' }} />
-                Serial
+                <Cable size={16} style={{ marginRight: '0.5rem' }} />
+                RTT (wired)
               </button>
               <button
                 onClick={() => setCommMode('bluetooth')}
