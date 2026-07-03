@@ -152,6 +152,13 @@ button.pause {
 }
 button.pause.active { background: var(--accent-violet); color: #000; }
 
+/* Event marker button */
+button.mark {
+  background: transparent;
+  color: var(--accent-yellow);
+  border: 1px solid var(--accent-yellow);
+}
+
 /* Demo mode — synthetic stream, no hardware needed */
 button.demo {
   background: transparent;

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   LineChart,
   Line,
@@ -9,7 +9,7 @@ import {
   ResponsiveContainer,
   Legend
 } from 'recharts';
-import { Activity, Thermometer, Droplets, Zap, Download, Play, Square, Pause, Bluetooth, Cable, Gauge, LayoutGrid, Layers, FlaskConical } from 'lucide-react';
+import { Activity, Thermometer, Droplets, Zap, Download, Play, Square, Pause, Bluetooth, Cable, Gauge, LayoutGrid, Layers, FlaskConical, Flag } from 'lucide-react';
 import { useComm } from './useComm';
 
 // Line colors per sensor instance (1..3 / 1..6)
@@ -24,6 +24,21 @@ const fmtRes = (r) => (r === undefined || r < 0) ? '--' : (r / 1000).toFixed(1);
 // Shared dark tooltip; label shows elapsed seconds via labelFormatter set per chart.
 const tooltipContentStyle = { background: '#1e293b', border: '1px solid var(--border-glass)', borderRadius: '8px' };
 const tooltipLabelStyle = { color: 'var(--text-dim)', fontSize: '0.75rem' };
+
+// Custom dot that draws a full-height dashed line + label at a marked sample.
+// (Used instead of <ReferenceLine> because recharts drops dynamically-mapped
+// ReferenceLine children; a Line's dot renderer is reliable on any axis.)
+const markDot = (props) => {
+  const { cx, payload, index } = props;
+  if (cx == null || !payload || !payload.mark) return <g key={`e${index}`} />;
+  return (
+    <g key={`m${payload.mark}-${index}`}>
+      <line x1={cx} x2={cx} y1={0} y2={2000} stroke="var(--accent-yellow)" strokeWidth={1.5} strokeDasharray="4 2" />
+      <text x={cx + 3} y={12} fill="var(--accent-yellow)" fontSize="11" fontWeight="600">M{payload.mark}</text>
+    </g>
+  );
+};
+
 
 // Single-signal card used by split view
 const MiniChart = ({ title, dataKey, color, history, latest, unit, xTick }) => (
@@ -43,7 +58,7 @@ const MiniChart = ({ title, dataKey, color, history, latest, unit, xTick }) => (
                label={unit ? { value: unit, angle: -90, position: 'insideLeft', fill: 'var(--text-dim)', fontSize: 11, style: { textAnchor: 'middle' } } : undefined} />
         <Tooltip contentStyle={tooltipContentStyle} labelStyle={tooltipLabelStyle}
                  labelFormatter={xTick} isAnimationActive={false} />
-        <Line type="monotone" dataKey={dataKey} stroke={color} strokeWidth={2} dot={false} isAnimationActive={false} />
+        <Line type="monotone" dataKey={dataKey} stroke={color} strokeWidth={2} dot={markDot} activeDot={false} isAnimationActive={false} />
       </LineChart>
     </ResponsiveContainer>
   </div>
@@ -64,12 +79,26 @@ const Dashboard = () => {
     togglePause,
     isDemo,
     toggleDemo,
+    markCount,
+    addMark,
     streamStart,
     commMode,
     setCommMode
   } = useComm();
 
   const [splitView, setSplitView] = useState(false);
+
+  // Keyboard shortcut: press M to drop an event marker (ignored in inputs)
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key.toLowerCase() !== 'm') return;
+      if (['INPUT', 'TEXTAREA'].includes(e.target.tagName)) return;
+      addMark();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // X-axis label: seconds elapsed since the stream started
   const fmtElapsed = (t) => (streamStart && typeof t === 'number' ? `${((t - streamStart) / 1000).toFixed(1)}s` : '');
@@ -93,7 +122,9 @@ const Dashboard = () => {
   const livePpg = [0, 1, 2].filter(s => (latestData.ppgMask & (1 << s)) !== 0);
   const liveBaro = [0, 1, 2, 3, 4, 5].filter(b => (latestData.baroMask & (1 << b)) !== 0);
 
-  const ppgOverlayChart = (title, color, keys, colors, latestKey) => (
+  const ppgOverlayChart = (title, color, keys, colors, latestKey) => {
+    const firstLive = keys.findIndex((_, idx) => (latestData.ppgMask & (1 << idx)) !== 0);
+    return (
     <div className="glass-card ppg-sub-card" key={title}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
         <Activity color={color} size={18} />
@@ -109,7 +140,8 @@ const Dashboard = () => {
           {keys.map((k, idx) => (
             (latestData.ppgMask & (1 << idx)) !== 0 &&
             <Line key={k} type="monotone" dataKey={k} stroke={colors[idx]}
-                  strokeWidth={2} dot={false} name={`S${idx + 1}`} isAnimationActive={false} />
+                  strokeWidth={2} dot={idx === firstLive ? markDot : false} activeDot={false}
+                  name={`S${idx + 1}`} isAnimationActive={false} />
           ))}
         </LineChart>
       </ResponsiveContainer>
@@ -117,7 +149,8 @@ const Dashboard = () => {
         {latestData[latestKey] || 0}
       </div>
     </div>
-  );
+    );
+  };
 
   return (
     <div className="dashboard-container">
@@ -197,6 +230,14 @@ const Dashboard = () => {
             </>
           ) : (
             <>
+              {/* Drop an event marker on the next sample (also: press M) */}
+              <button className="mark" onClick={addMark}
+                      title="변화 시점 표시 — 모든 차트에 세로선, CSV Mark 칼럼에 번호 기록 (단축키 M)"
+                      style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <Flag size={16} />
+                {markCount > 0 ? `Mark (${markCount})` : 'Mark'}
+              </button>
+
               {/* Stop = freeze charts while staying connected (no re-pairing) */}
               <button className={isPaused ? 'pause active' : 'pause'} onClick={togglePause}
                       style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -331,7 +372,8 @@ const Dashboard = () => {
                 <Legend />
                 {['f1', 'f2', 'f3'].map((k, idx) => (
                   <Line key={k} type="monotone" dataKey={k} stroke={FORCE_COLORS[idx]}
-                        strokeWidth={2} dot={false} name={`FSR ${idx + 1} (mV)`} isAnimationActive={false} />
+                        strokeWidth={2} dot={idx === 0 ? markDot : false} activeDot={false}
+                        name={`FSR ${idx + 1} (mV)`} isAnimationActive={false} />
                 ))}
               </LineChart>
             </ResponsiveContainer>
@@ -349,9 +391,10 @@ const Dashboard = () => {
                 <YAxis stroke="var(--text-dim)" fontSize={12} width={58} domain={['auto', 'auto']} label={{ value: 'mbar', angle: -90, position: 'insideLeft', fill: 'var(--text-dim)', style: { textAnchor: 'middle' } }} />
                 <Tooltip {...tooltipProps} />
                 <Legend />
-                {liveBaro.map((b) => (
+                {liveBaro.map((b, idx) => (
                   <Line key={b} type="monotone" dataKey={`p${b + 1}`} stroke={BARO_COLORS[b]}
-                        strokeWidth={2} dot={false} name={`P${b + 1}`} isAnimationActive={false} />
+                        strokeWidth={2} dot={idx === 0 ? markDot : false} activeDot={false}
+                        name={`P${b + 1}`} isAnimationActive={false} />
                 ))}
               </LineChart>
             </ResponsiveContainer>

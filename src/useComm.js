@@ -55,6 +55,17 @@ export const useComm = () => {
   const [streamStart, setStreamStart] = useState(null);
   const streamStartRef = useRef(null);
 
+  // Event markers: pressing Mark tags the NEXT sample, so the marker lands on
+  // a real data point (drawn on every chart, saved in the CSV Mark column).
+  const [markCount, setMarkCount] = useState(0);
+  const markCounterRef = useRef(0);
+  const markNextRef = useRef(0);
+  const addMark = () => {
+    markCounterRef.current += 1;
+    markNextRef.current = markCounterRef.current;
+    setMarkCount(markCounterRef.current);
+  };
+
   const applyFilter = (point) => {
     if (!isFilteredRef.current) return point;
     const fs = filterStateRef.current;
@@ -74,6 +85,12 @@ export const useComm = () => {
       setStreamStart(points[0].timestamp);
     }
     const processed = points.map(applyFilter);
+    // Attach a pending marker to the most recent sample of this batch so it
+    // flows to BOTH the recorded copy and the on-screen history.
+    if (markNextRef.current) {
+      processed[processed.length - 1].mark = markNextRef.current;
+      markNextRef.current = 0;
+    }
     // Recording keeps capturing even while the display is paused
     if (isRecordingRef.current) {
       for (const p of processed) {
@@ -321,13 +338,16 @@ export const useComm = () => {
 
   const exportToCsv = () => {
     if (recordedDataRef.current.length === 0) return;
+    // Time_s = seconds since the session's first sample, matching the chart
+    // x-axis. Mark = event-marker number on that row (blank if none).
+    const t0 = streamStartRef.current ?? recordedDataRef.current[0].timestamp;
     const cols = ['timestamp',
       'r1','i1','g1','r2','i2','g2','r3','i3','g3',
       'f1','f2','f3','v','res1','res2','res3',
-      'p1','p2','p3','p4','p5','p6','t','h','pt'];
-    const headers = cols.join(',') + '\n';
+      'p1','p2','p3','p4','p5','p6','t','h','pt','mark'];
+    const headers = 'Time_s,' + cols.join(',') + '\n';
     const csvContent = recordedDataRef.current.map(d =>
-      cols.map(c => d[c] ?? '').join(',')
+      ((d.timestamp - t0) / 1000).toFixed(3) + ',' + cols.map(c => d[c] ?? '').join(',')
     ).join('\n');
     const blob = new Blob([headers + csvContent], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
@@ -343,6 +363,7 @@ export const useComm = () => {
     isRecording, toggleRecording, isFiltered, toggleFilter,
     isPaused, togglePause,
     isDemo, toggleDemo,
+    markCount, addMark,
     streamStart,
     commMode, setCommMode
   };
