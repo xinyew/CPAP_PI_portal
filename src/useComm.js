@@ -78,7 +78,7 @@ export const useComm = () => {
 
     if (type === TYPE_DATA) {
       const n = dv.getUint8(9);
-      if (dv.byteLength < 12 + 108 + 32 + 24) return true; // truncated: drop
+      if (dv.byteLength < 12 + 108 + 32 + 72) return true; // truncated: drop
       const now = Date.now();
       const points = [];
       for (let k = 0; k < n; k++) {
@@ -96,9 +96,10 @@ export const useComm = () => {
         pt.f2 = dv.getInt16(fb + 2, true);
         pt.f3 = dv.getInt16(fb + 4, true);
         pt.v = dv.getInt16(fb + 6, true);
-        // Baro block: 6 x i32 Pa -> mbar
+        // Baro block: 4 samples x 6 x u24 Pa -> mbar (100 Hz)
+        const bb = 12 + 108 + 32 + k * 18;
         for (let b = 0; b < 6; b++) {
-          pt[`p${b + 1}`] = dv.getInt32(12 + 140 + b * 4, true) / 100;
+          pt[`p${b + 1}`] = readU24(dv, bb + b * 3) / 100;
         }
         points.push(pt);
       }
